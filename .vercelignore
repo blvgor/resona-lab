@@ -1,0 +1,7 @@
+artifacts/
+tests/
+public/
+README.md
+server.js
+start.command
+.git/

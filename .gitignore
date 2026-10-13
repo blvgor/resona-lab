@@ -1,0 +1,9 @@
+.vercel/
+public/
+.vercel
+node_modules/
+.env
+.env.*
+.DS_Store
+artifacts/
+codex-downloads-*/

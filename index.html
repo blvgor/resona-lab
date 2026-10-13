@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111210">
+  <meta name="description" content="Исследуйте фигуры Хладни: меняйте резонанс, наблюдайте движение песка и сохраняйте узоры в PNG.">
+  <title>resona · форма звука</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23111210'/%3E%3Ccircle cx='20' cy='20' r='12' fill='%23e7d7b1'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">К инструменту</a>
+  <header class="header">
+    <a class="brand" href="#studio" aria-label="Resona, лаборатория">
+      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="13" cy="13" r="7"/><circle cx="27" cy="13" r="7"/><circle cx="13" cy="27" r="7"/><circle cx="27" cy="27" r="7"/></svg>
+      <span>resona<span class="brand-dot">.</span></span>
+    </a>
+    <nav class="navigation" aria-label="Основная навигация">
+      <button id="nav-studio" aria-pressed="true">Лаборатория</button>
+      <button id="nav-gallery" aria-pressed="false">Коллекция <span class="nav-count">48</span></button>
+    </nav>
+    <button class="about-button" id="about-open" aria-label="Как это работает"><span aria-hidden="true">λ</span><span>Как это работает</span></button>
+  </header>
+  <main id="main" tabindex="-1">
+    <section id="studio-page" aria-labelledby="studio-title">
+      <div class="page-heading"><h1 id="studio-title">Форма звука.</h1><span class="sr-only" id="live-state" aria-live="polite">Симуляция идёт</span></div>
+      <div class="studio-layout">
+        <aside class="left-panel" aria-label="Частота и экспорт">
+          <section class="panel tuning-panel" aria-labelledby="tuning-heading">
+            <h2 class="section-label" id="tuning-heading">Резонанс</h2>
+            <div class="segmented" aria-label="Способ настройки">
+              <button data-tuning="patterns" aria-pressed="true">Узоры</button><button data-tuning="manual" aria-pressed="false">Вручную</button>
+            </div>
+            <div class="frequency-readout"><span id="frequency-value">—</span><span class="frequency-unit">Гц</span></div>
+            <div id="pattern-tuner" class="pattern-tuner"><button id="previous" aria-label="Предыдущий узор">←</button><span id="pattern-index">01 / 48</span><button id="next" aria-label="Следующий узор">→</button></div>
+            <div id="manual-tuner" hidden>
+              <label class="manual-label" for="frequency">Частота, Гц</label><input id="frequency" type="number" inputmode="decimal" min="20" max="16000" step="0.1" value="400" aria-describedby="frequency-error">
+              <input id="frequency-slider" type="range" min="20" max="16000" step="1" value="400" aria-label="Частота">
+              <p class="field-error" id="frequency-error" role="alert" hidden>Введите частоту от 20 до 16 000 Гц.</p>
+              <button id="sweep" class="text-button" aria-pressed="false">Запустить поиск резонанса</button>
+            </div>
+            <button id="sound" class="sound-button" aria-pressed="false"><span class="sound-icon" aria-hidden="true">♪</span><span id="sound-label">Включить звук</span></button>
+          </section>
+          <section class="panel export-panel" aria-labelledby="export-heading">
+            <h2 class="section-label" id="export-heading">Сохранить узор</h2>
+            <div class="segmented sizes" aria-label="Размер PNG"><button data-size="1080" aria-pressed="false">1080</button><button data-size="2160" aria-pressed="false">2K</button><button data-size="3840" aria-pressed="true">4K</button></div>
+            <label class="switch-row"><span>Прозрачный фон</span><input id="transparent" type="checkbox" role="switch"><span class="switch-track" aria-hidden="true"></span></label>
+            <label class="switch-row"><span>Поля вокруг узора</span><input id="margins" type="checkbox" role="switch" checked><span class="switch-track" aria-hidden="true"></span></label>
+            <button class="download-button" id="export">Скачать PNG</button>
+            <p class="export-dimensions" id="export-dimensions">3840 × 3840 px</p>
+          </section>
+        </aside>
+        <section class="canvas-panel" aria-label="Узор на пластине">
+          <div class="canvas-toolbar"><div class="view-switch" aria-label="Вид узора"><button data-view="sand" aria-pressed="true">Песок</button><button data-view="contours" aria-pressed="false">Контуры</button><button data-view="field" aria-pressed="false">Поле</button></div><button id="fullscreen" class="small-button" aria-label="Развернуть холст" title="Развернуть холст">⤢</button></div>
+          <div class="plate-wrap" id="plate-wrap"><button id="fullscreen-close" class="fullscreen-close" aria-label="Закрыть развёрнутый холст">Вернуться в лабораторию ×</button><div id="plate" class="plate"><canvas id="sand" role="img" aria-label="Узор Орбита, частицы песка на вибрирующей пластине"></canvas><canvas id="field" aria-hidden="true"></canvas></div></div>
+          <div class="pattern-caption"><div><h2 id="pattern-name">Орбита</h2><p id="mode-label">Моды (1, 3) + (3, 1)</p></div><div class="pattern-actions"><button id="random-pattern" class="random-button">Случайный узор</button><div class="playback"><button id="pause" class="small-button" aria-label="Приостановить песок" aria-pressed="false">Ⅱ</button><button id="reset-sand" class="small-button" aria-label="Рассыпать песок заново" title="Рассыпать заново">↻</button></div></div><span id="pattern-change" class="sr-only" role="status" aria-live="polite"></span></div>
+        </section>
+        <aside class="right-panel" aria-label="Настройки пластины и оформления">
+          <div class="segmented settings-tabs" aria-label="Группа настроек"><button data-settings="physics" aria-pressed="true">Пластина</button><button data-settings="appearance" aria-pressed="false">Оформление</button></div>
+          <div id="physics-settings">
+            <section class="panel" aria-labelledby="plate-heading"><h2 id="plate-heading" class="section-label">Пластина</h2>
+              <label class="select-row" for="material"><span>Материал</span><select id="material"><option value="aluminum">Алюминий</option><option value="steel">Сталь</option><option value="brass">Латунь</option><option value="titanium">Титан</option></select></label>
+              <div class="range-control"><label for="thickness">Толщина <output id="thickness-output" for="thickness">1,5 мм</output></label><input id="thickness" type="range" min="0.5" max="4" step="0.1" value="1.5"></div>
+              <div class="range-control"><label for="length">Ширина <output id="length-output" for="length">30 см</output></label><input id="length" type="range" min="15" max="60" step="1" value="30"></div>
+              <div class="aspect-control"><span>Пропорции</span><div class="segmented" aria-label="Пропорции пластины"><button data-aspect="1" aria-pressed="true">1:1</button><button data-aspect="1.3333333333333333" aria-pressed="false">4:3</button><button data-aspect="1.5" aria-pressed="false">3:2</button><button data-aspect="2" aria-pressed="false">2:1</button></div></div>
+            </section>
+            <section class="panel" aria-labelledby="excitation-heading"><h2 id="excitation-heading" class="section-label">Колебания</h2>
+              <div class="range-control"><label for="mix">Смешение мод <output id="mix-output" for="mix">+1,00</output></label><input id="mix" type="range" min="-1" max="1" step="0.01" value="1"></div>
+              <div class="range-control"><label for="damping">Затухание <output id="damping-output" for="damping">0,015</output></label><input id="damping" type="range" min="0.005" max="0.08" step="0.001" value="0.015"></div>
+            </section>
+          </div>
+          <div id="appearance-settings" hidden>
+            <section class="panel" aria-labelledby="grains-heading"><h2 id="grains-heading" class="section-label">Песок</h2>
+              <div class="range-control"><label for="count">Частицы <output id="count-output" for="count">40 000</output></label><input id="count" type="range" min="10000" max="80000" step="5000" value="40000"></div>
+              <div class="range-control"><label for="grain">Размер зерна <output id="grain-output" for="grain">1,2</output></label><input id="grain" type="range" min="0.5" max="2.8" step="0.1" value="1.2"></div>
+              <div class="range-control"><label for="spread">Рассеивание <output id="spread-output" for="spread">1,2</output></label><input id="spread" type="range" min="0.3" max="3" step="0.1" value="1.2"></div>
+              <div class="range-control"><label for="exposure">Яркость <output id="exposure-output" for="exposure">1,0</output></label><input id="exposure" type="range" min="0.4" max="1.8" step="0.1" value="1"></div>
+            </section>
+            <section class="panel" aria-labelledby="color-heading"><h2 id="color-heading" class="section-label">Цвет</h2>
+              <div class="palettes" aria-label="Палитра"><button data-palette="sand" style="--swatch:#e7d7b1" aria-label="Палитра Песок" aria-pressed="true"></button><button data-palette="chalk" style="--swatch:#ecece2" aria-label="Палитра Мел" aria-pressed="false"></button><button data-palette="cobalt" style="--swatch:#8faaff" aria-label="Палитра Кобальт" aria-pressed="false"></button><button data-palette="ember" style="--swatch:#f18b66" aria-label="Палитра Угольки" aria-pressed="false"></button><button data-palette="moss" style="--swatch:#b2d19f" aria-label="Палитра Мох" aria-pressed="false"></button></div>
+              <label class="color-row" for="color"><span>Цвет песка</span><input id="color" type="color" value="#e7d7b1"></label><label class="color-row" for="background"><span>Цвет фона</span><input id="background" type="color" value="#090a09"></label>
+            </section>
+          </div>
+          <button id="reset-settings" class="text-button reset-settings">Сбросить настройки</button>
+        </aside>
+      </div>
+    </section>
+    <section id="gallery-page" aria-labelledby="gallery-title" hidden>
+      <div class="gallery-heading"><h1 id="gallery-title">Коллекция узоров</h1></div>
+      <div class="gallery-filters" aria-label="Категории узоров"><button data-filter="all" aria-pressed="true">Все <span>48</span></button><button data-filter="curves" aria-pressed="false">Плавные</button><button data-filter="geometric" aria-pressed="false">Геометрия</button><button data-filter="intricate" aria-pressed="false">Сложные</button></div>
+      <p class="gallery-count" id="gallery-count" role="status">48 узоров</p><div id="gallery-grid" class="gallery-grid"></div>
+    </section>
+  </main>
+  <div id="status" class="toast" role="status" aria-live="polite"></div>
+  <dialog id="about-dialog" aria-labelledby="about-title"><div class="dialog-top"><span class="section-label">О симуляции</span><button id="about-close" class="small-button" aria-label="Закрыть объяснение">×</button></div><h2 id="about-title">Почему песок рисует?</h2><p>При вибрации пластины одни участки двигаются сильнее, а другие остаются почти неподвижными. Песок скапливается вдоль этих узловых линий. Так возникают фигуры Хладни.</p><p>Здесь частоты и формы колебаний рассчитаны для прямоугольной тонкой пластины с опорой по четырём краям. В режиме «Узоры» смешиваются две моды. На квадратной пластине их частоты совпадают; на прямоугольной меняется их соотношение.</p><p>В ручном режиме рассчитан отклик на точечное возбуждение: из 81 моды используются 16 с наибольшим вкладом. Материал, толщина и размер меняют частоты. «Поле» показывает колебания, «Контуры» выделяют линии равного смещения.</p><p>Движение песчинок показано приближённо: частицы стремятся к участкам с меньшей амплитудой. Это инструмент для исследования и создания графики, а не инженерный расчёт реальной установки.</p><a href="https://math.louisiana.edu/sites/math/files/DuongNguyenPosterSIAMTXLA.pdf" target="_blank" rel="noopener noreferrer">Модель колебаний тонкой пластины ↗</a></dialog>
+  <noscript><p class="noscript">Для симуляции включите JavaScript. Настройки и генерация узоров работают прямо в браузере.</p></noscript>
+</body>
+</html>
