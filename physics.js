@@ -1,10 +1,10 @@
 // Kirchhoff–Love thin plate, simply supported on all four edges.
 // Exact modal frequencies; truncated modal forced response.
 export const MATERIALS = {
-  aluminum: { name: 'Алюминий', E: 69e9, rho: 2700, nu: 0.33 },
-  steel: { name: 'Сталь', E: 200e9, rho: 7850, nu: 0.30 },
-  brass: { name: 'Латунь', E: 100e9, rho: 8500, nu: 0.34 },
-  titanium: { name: 'Титан', E: 116e9, rho: 4500, nu: 0.34 }
+  aluminum: { name: 'Aluminium', E: 69e9, rho: 2700, nu: 0.33 },
+  steel: { name: 'Steel', E: 200e9, rho: 7850, nu: 0.30 },
+  brass: { name: 'Brass', E: 100e9, rho: 8500, nu: 0.34 },
+  titanium: { name: 'Titanium', E: 116e9, rho: 4500, nu: 0.34 }
 };
 
 export function naturalFrequency(m, n, plate) {
@@ -92,9 +92,9 @@ export function sampleGrid(grid, size, x, y) {
 }
 
 const pairs = [[1,3],[2,3],[1,2],[1,4],[2,4],[1,5],[3,4],[2,5],[3,5],[1,6],[2,6],[4,5],[3,6],[1,7],[4,6],[2,7],[3,7],[5,6],[4,7],[5,7],[6,7]];
-const names = [['Орбита','Пересечение'],['Лепестки','Паруса'],['Прилив','Развилка'],['Крылья','Меридиан'],['Четырёхлистник','Решётка'],['Двойное кольцо','Компас'],['Ирис','Контрапункт'],['Бутон','Каскад'],['Мандала','Переплетение'],['Волна','Горизонты'],['Розетка','Ступени'],['Созвездие','Лабиринт'],['Венок','Мозаика'],['Три орбиты','Калейдоскоп'],['Лотос','Кружево'],['Соцветие','Ритм'],['Звёздный сад','Паутинка'],['Корона','Ткань'],['Георгин','Плетение'],['Хризантема','Соты'],['Микрокосм','Гобелен']];
+const names = [['Orbit','Crossing'],['Petals','Sails'],['Tide','Fork'],['Wings','Meridian'],['Quatrefoil','Lattice'],['Double ring','Compass'],['Iris','Counterpoint'],['Bud','Cascade'],['Mandala','Interlace'],['Wave','Horizons'],['Rosette','Steps'],['Constellation','Labyrinth'],['Wreath','Mosaic'],['Three orbits','Kaleidoscope'],['Lotus','Lace'],['Bloom','Rhythm'],['Star garden','Cobweb'],['Crown','Fabric'],['Dahlia','Weave'],['Chrysanthemum','Honeycomb'],['Microcosm','Tapestry']];
 export const PRESETS = pairs.flatMap(([m,n], i) => [1,-1].map((mix,j) => ({ id: i * 2 + j, m, n, mix, name: names[i][j], category: m + n >= 9 ? 'intricate' : j === 0 ? 'curves' : 'geometric' })));
-for (let m = 2; m <= 7; m++) PRESETS.push({ id: PRESETS.length, m, n: m, mix: 0, name: ['Окна','Квадранты','Плитка','Колоннада','Шахматная доска','Архитектура'][m - 2], category: m >= 5 ? 'intricate' : 'geometric' });
+for (let m = 2; m <= 7; m++) PRESETS.push({ id: PRESETS.length, m, n: m, mix: 0, name: ['Windows','Quadrants','Tiles','Colonnade','Chessboard','Architecture'][m - 2], category: m >= 5 ? 'intricate' : 'geometric' });
 
 export const DEFAULT_STATE = {
   preset: 0, material: 'aluminum', thickness: 1.5, length: 30, aspect: 1, damping: 0.015,

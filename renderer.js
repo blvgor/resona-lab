@@ -30,8 +30,8 @@ export class SandRenderer {
     this.canvas = canvas; this.fieldCanvas = fieldCanvas; this.rng = random(); this.onError = onError;
     this.gl = canvas.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: true });
     if (this.gl) this.initGL(); else this.ctx = canvas.getContext('2d');
-    canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); this.lost = true; onError('Графика приостановлена. Ожидаем восстановления.'); });
-    canvas.addEventListener('webglcontextrestored', () => { this.lost = false; this.initGL(); onError('Графика восстановлена.'); this.draw(); });
+    canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); this.lost = true; onError('Graphics paused. Waiting for recovery.'); });
+    canvas.addEventListener('webglcontextrestored', () => { this.lost = false; this.initGL(); onError('Graphics restored.'); this.draw(); });
   }
   initGL() {
     const gl = this.gl;
