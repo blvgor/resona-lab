@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resona — демо движка</title>
+<style>
+  :root { --bg: #090a09; --sand: #e7d7b1; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; }
+  .hint {
+    position: fixed; left: 16px; bottom: 16px; max-width: calc(100vw - 32px); box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 16px;
+    background: rgba(0, 0, 0, .4); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    color: var(--sand); font: 13px/120% -apple-system, system-ui, sans-serif; pointer-events: none;
+  }
+  .hint b { font-weight: 600; }
+  .error { position: fixed; inset: 0; display: grid; place-items: center; color: var(--sand);
+    font: 18px/120% -apple-system, system-ui, sans-serif; padding: 24px; text-align: center; }
+</style>
+</head>
+<body>
+<canvas id="field"></canvas>
+<div class="hint" id="hint">
+  <div><b id="status">…</b></div>
+  <div>Проведи — разбей · Зажми — тащи · Дёрни — брось · Двойной клик — удар · Колесо — частота</div>
+  <div>1–6 палитры · V вид · P пластина 1:1 · N следующая фигура · R рассыпать · S снимок 2× · T прозрачный 4K</div>
+</div>
+<script type="module">
+import { createEngine, plateRect } from '../engine.js';
+import { modeSet, PRESETS, naturalFrequency } from '../physics.js';
+import { PALETTES } from '../palettes.js';
+import { createPieces } from '../pieces.js';
+import { createGestures } from '../gestures.js';
+
+const canvas = document.getElementById('field');
+const statusEl = document.getElementById('status');
+const VIEWS = ['sand', 'contours', 'field'];
+const RADIUS = 0.08;
+const plateBase = { material: 'aluminum', thickness: 1.5, length: 30 };
+
+let engine;
+try {
+  engine = createEngine(canvas, { count: Number(new URLSearchParams(location.search).get('count')) || 200000,
+    onError: message => { statusEl.textContent = message; } });
+} catch (error) {
+  document.body.innerHTML = `<div class="error">${error.code === 'NO_WEBGL2'
+    ? 'Нужен браузер с WebGL2 — Chrome, Safari или Firefox последних версий' : error.message}</div>`;
+  throw error;
+}
+window.engine = engine;
+
+const state = { preset: 0, proportion: 'screen', view: 0, palette: 0, manual: false, frequency: 0 };
+const pieces = createPieces();
+const gestures = createGestures({ width: innerWidth, height: innerHeight });
+let held = null;
+window.pieces = pieces;
+const aspect = () => innerWidth / innerHeight;
+
+function plateFor() {
+  const rect = plateRect(aspect(), state.proportion);
+  // Full screen: the physics of a square plate stretched over the window; otherwise the plate's own proportion.
+  const plateAspect = state.proportion === 'screen' ? 1 : rect.w * aspect() / rect.h;
+  return { rect, plate: { ...plateBase, aspect: plateAspect } };
+}
+
+function applyModes(morphSec = 1.2) {
+  const { rect, plate } = plateFor();
+  engine.setPlate(rect);
+  const set = modeSet({ preset: PRESETS[state.preset], plate, frequency: state.frequency, manual: state.manual });
+  state.frequency = set.frequency;
+  engine.setModes(set.modes, { morphSec });
+}
+
+function applyLook() {
+  const p = PALETTES[state.palette];
+  document.documentElement.style.setProperty('--bg', p.background);
+  engine.setLook({ view: VIEWS[state.view], background: p.background, sand: p.sand, glow: p.glow, glowAmount: p.glowAmount });
+}
+
+function resize() {
+  engine.resize(innerWidth, innerHeight, Math.min(2, devicePixelRatio || 1));
+  gestures.resize(innerWidth, innerHeight);
+  applyModes(0.4);
+}
+
+function handle(intents) {
+  for (const it of intents) {
+    switch (it.type) {
+      case 'break': engine.setPointer({ ...it, mode: 'break' }); break;
+      case 'hover': engine.setPointer({ ...it, mode: 'idle' }); break;
+      case 'grab': {
+        const { slot, evicted } = pieces.grab(it.x, it.y, RADIUS, aspect());
+        if (evicted !== null) engine.release(evicted);
+        engine.grab(slot, { x: it.x, y: it.y, radius: RADIUS, aspect: aspect() });
+        held = slot;
+        break;
+      }
+      case 'drag': if (held !== null) pieces.hold(held, it.x, it.y); engine.setPointer({ ...it, mode: 'hold' }); break;
+      case 'throw': if (held !== null) pieces.release(held, it.vx, it.vy); held = null; break;
+      case 'shock': engine.shock(it.x, it.y); break;
+      case 'scrub': {
+        if (!state.manual) { state.manual = true; }
+        state.frequency = Math.max(20, Math.min(16000, state.frequency * 2 ** (it.delta / 12)));
+        applyModes(0.25);
+        break;
+      }
+    }
+  }
+}
+
+const pointer = e => ({ x: e.clientX, y: e.clientY, t: e.timeStamp || performance.now(), id: e.pointerId, pointerType: e.pointerType, buttons: e.buttons });
+canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); handle(gestures.down(pointer(e))); });
+canvas.addEventListener('pointermove', e => handle(gestures.move(pointer(e))));
+canvas.addEventListener('pointerup', e => handle(gestures.up(pointer(e))));
+canvas.addEventListener('pointercancel', e => handle(gestures.up(pointer(e))));
+canvas.addEventListener('wheel', e => { e.preventDefault(); handle(gestures.wheel({ deltaY: e.deltaY, t: e.timeStamp })); }, { passive: false });
+
+function download(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+addEventListener('keydown', async e => {
+  const k = e.key.toLowerCase();
+  if (k >= '1' && k <= '6') { state.palette = Number(k) - 1; applyLook(); }
+  else if (k === 'v' || k === 'м') { state.view = (state.view + 1) % VIEWS.length; applyLook(); }
+  else if (k === 'p' || k === 'з') { state.proportion = state.proportion === 'screen' ? 1 : 'screen'; applyModes(0.8); }
+  else if (k === 'n' || k === 'т') { state.preset = (state.preset + 1) % PRESETS.length; state.manual = false; applyModes(); }
+  else if (k === 'r' || k === 'к') engine.scatter();
+  else if (k === 's' || k === 'ы') {
+    const blob = await engine.snapshot({ scale: 2 });
+    window.lastSnapshot = blob;
+    download(blob, 'resona-2x.png');
+  } else if (k === 't' || k === 'е') {
+    const blob = await engine.snapshot({ longSide: 3840, transparent: true });
+    window.lastSnapshot = blob;
+    download(blob, 'resona-4k.png');
+  }
+});
+addEventListener('resize', resize);
+
+resize();
+applyLook();
+applyModes();
+
+function step(now, dt, paused = false) {
+  handle(gestures.tick(now));
+  for (const ev of pieces.step(dt, aspect())) if (ev.type === 'home') engine.release(ev.slot);
+  engine.setPieces(pieces.list());
+  engine.frame(dt, { paused });
+}
+// Console hook for scripted checks in a background tab (no rAF there): demo.run(frames, { t0, dt }).
+// demo.manual = true stops the rAF loop; then demo.down/move/up/run drive a scripted clock.
+window.demo = {
+  gestures, handle, step, pieces, manual: false, t: 0,
+  run(frames, dt = 1 / 60) {
+    for (let i = 0; i < frames; i++) { this.t += dt * 1000; step(this.t, dt); }
+  },
+  down(x, y) { handle(gestures.down({ x: x * innerWidth, y: y * innerHeight, t: this.t, pointerType: 'mouse', id: 1 })); this.run(1); },
+  up(x, y) { handle(gestures.up({ x: x * innerWidth, y: y * innerHeight, t: this.t, id: 1 })); this.run(1); },
+  // Moves along a straight line in `frames` frames, one pointer sample per frame.
+  move(x0, y0, x1, y1, frames, buttons = 0) {
+    for (let i = 1; i <= frames; i++) {
+      const k = i / frames;
+      handle(gestures.move({ x: (x0 + (x1 - x0) * k) * innerWidth, y: (y0 + (y1 - y0) * k) * innerHeight, t: this.t, buttons, id: 1 }));
+      this.run(1);
+    }
+  }
+};
+
+let last = performance.now(), shown = 0;
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000);
+  last = now;
+  if (!demo.manual) step(now, dt, document.hidden);
+  if (now - shown > 500) {
+    shown = now;
+    const name = state.manual ? 'Вручную' : PRESETS[state.preset].name;
+    statusEl.textContent = `${name} · ${state.frequency.toFixed(1)} Гц · ${VIEWS[state.view]} · ${Math.round(engine.fps())} к/с`;
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

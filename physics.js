@@ -37,18 +37,8 @@ export function createField(preset, plate, frequency, damping, mix, size = 192, 
   const response = responseCoefficients(preset, plate, frequency, damping, mix);
   let modes = [{ m: preset.m, n: preset.n, ...response.terms[0] }, { m: preset.n, n: preset.m, ...response.terms[1] }];
   if (manual) {
-    modes = [];
-    for (let m = 1; m <= 9; m++) for (let n = 1; n <= 9; n++) {
-      const fn = naturalFrequency(m, n, plate), w = 2 * Math.PI * fn, drive = 2 * Math.PI * frequency;
-      const re = w * w - drive * drive, im = 2 * damping * w * drive;
-      const f = basis(m, n, .37, .43), den = re * re + im * im;
-      modes.push({ m, n, re: f * re / den, im: -f * im / den, fn });
-    }
-    modes.sort((a,b) => Math.hypot(b.re,b.im) - Math.hypot(a.re,a.im));
-    // Keep the strongest 16 modal responses; the full 81-mode basis sets their weights.
-    const norm = modes.slice(0,16).reduce((sum,t) => sum + Math.hypot(t.re,t.im),0);
+    modes = manualModes(plate, frequency, damping);
     response.dominantMode = { m: modes[0].m, n: modes[0].n, frequency: modes[0].fn };
-    modes = modes.slice(0,16).map(t => ({ ...t, re: t.re / norm, im: t.im / norm }));
   }
   const values = new Float32Array(size * size), signed = new Float32Array(size * size);
   const gx = new Float32Array(size * size), gy = new Float32Array(size * size);
@@ -82,6 +72,55 @@ export function createField(preset, plate, frequency, damping, mix, size = 192, 
     imaginaryX[j]=(imaginary[right]-imaginary[left])*(size-1)/2;imaginaryY[j]=(imaginary[bottom]-imaginary[top])*(size-1)/2;
   }
   return { size, values, signed, gx, gy, real, imaginary, realX, realY, imaginaryX, imaginaryY, response, maximum };
+}
+
+// Point force at (0.37a, 0.43b) drives all 81 modes (m,n = 1..9); the strongest 16 are kept,
+// sorted by strength, with weights normalized to a unit sum of moduli.
+function manualModes(plate, frequency, damping) {
+  const modes = [];
+  for (let m = 1; m <= 9; m++) for (let n = 1; n <= 9; n++) {
+    const fn = naturalFrequency(m, n, plate), w = 2 * Math.PI * fn, drive = 2 * Math.PI * frequency;
+    const re = w * w - drive * drive, im = 2 * damping * w * drive;
+    const f = basis(m, n, .37, .43), den = re * re + im * im;
+    modes.push({ m, n, re: f * re / den, im: -f * im / den, fn });
+  }
+  modes.sort((a,b) => Math.hypot(b.re,b.im) - Math.hypot(a.re,a.im));
+  // Keep the strongest 16 modal responses; the full 81-mode basis sets their weights.
+  const norm = modes.slice(0,16).reduce((sum,t) => sum + Math.hypot(t.re,t.im),0);
+  return modes.slice(0,16).map(t => ({ ...t, re: t.re / norm, im: t.im / norm }));
+}
+
+const NORMALIZE_GRID = 48;
+
+// Modal coefficients for the analytic GPU field. plate.aspect is the window proportion and may be < 1.
+// Coefficients are scaled so that max |w| over the plate ≈ 1, which keeps sand thresholds frequency-independent.
+export function modeSet({ preset, plate, frequency, damping = 0.015, mix = preset.mix, manual = false }) {
+  let modes, dominant;
+  if (manual) {
+    // Project every mode onto the dominant mode's phase: the standing wave is then real, and the zeros of a real
+    // field are nodal lines. Kept as complex, modes in different phases leave point zeros and the sand clumps.
+    const raw = manualModes(plate, frequency, damping);
+    const phase = Math.atan2(raw[0].im, raw[0].re), c = Math.cos(phase), s = Math.sin(phase);
+    modes = raw.map(({ m, n, re, im }) => ({ m, n, re: re * c + im * s, im: 0 }));
+    dominant = { m: modes[0].m, n: modes[0].n };
+  } else {
+    frequency = naturalFrequency(preset.m, preset.n, plate);
+    const { terms } = responseCoefficients(preset, plate, frequency, damping, mix);
+    const pair = [{ m: preset.m, n: preset.n, ...terms[0] }, { m: preset.n, n: preset.m, ...terms[1] }];
+    // A square mode (m == n) or zero mix leaves the second term empty; drop it.
+    modes = pair.filter((t, i) => i === 0 || Math.hypot(t.re, t.im) > 0);
+    const strongest = modes.reduce((a, b) => Math.hypot(a.re, a.im) >= Math.hypot(b.re, b.im) ? a : b);
+    dominant = { m: strongest.m, n: strongest.n };
+  }
+  let max = 0;
+  for (let j = 0; j < NORMALIZE_GRID; j++) for (let i = 0; i < NORMALIZE_GRID; i++) {
+    const x = i / (NORMALIZE_GRID - 1), y = j / (NORMALIZE_GRID - 1);
+    let re = 0, im = 0;
+    for (const t of modes) { const b = basis(t.m, t.n, x, y); re += t.re * b; im += t.im * b; }
+    max = Math.max(max, Math.hypot(re, im));
+  }
+  const scale = max > 0 ? 1 / max : 1;
+  return { modes: modes.map(t => ({ m: t.m, n: t.n, re: t.re * scale, im: t.im * scale })), frequency, dominant };
 }
 
 export function sampleGrid(grid, size, x, y) {
